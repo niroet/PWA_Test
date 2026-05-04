@@ -21,7 +21,6 @@
       --accent: #2563eb;
       --accent-ink: #ffffff;
       --ok: #16a34a;
-      --danger: #dc2626;
     }
     * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
     html, body {
@@ -40,7 +39,7 @@
       margin: 0 auto;
       padding: 16px 16px 32px;
     }
-    header {
+    header.page {
       padding: 12px 4px 20px;
     }
     .eyebrow {
@@ -68,7 +67,7 @@
       margin-bottom: 14px;
       box-shadow: 0 1px 2px rgba(15,23,42,0.04);
     }
-    .card header {
+    .card-head {
       padding: 0 0 10px;
       display: flex;
       align-items: center;
@@ -77,9 +76,6 @@
     .card-title {
       font-size: 15px;
       font-weight: 600;
-      display: flex;
-      align-items: center;
-      gap: 8px;
     }
     .badge {
       font-size: 11px;
@@ -97,9 +93,13 @@
       border-radius: 10px;
       aspect-ratio: 16 / 9;
       overflow: hidden;
+    }
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
       touch-action: none;
     }
-    canvas { display: block; width: 100%; height: 100%; touch-action: none; }
     .pad-hint {
       position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
@@ -142,7 +142,6 @@
       color: #f8fafc;
       cursor: not-allowed;
     }
-    /* success view */
     .success {
       display: none;
       flex-direction: column;
@@ -165,57 +164,32 @@
     .success p { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
     .success button { width: 100%; max-width: 280px; }
     .main.hidden { display: none; }
-    .install-tip {
-      margin-top: 18px;
-      font-size: 12px;
-      color: var(--muted);
-      text-align: center;
-      line-height: 1.4;
-    }
   </style>
 </head>
 <body>
   <div class="app">
     <section class="main" id="main">
-      <header>
+      <header class="page">
         <p class="eyebrow">Prototyp</p>
         <h1>Schlüsselübergabe</h1>
         <p class="meta">Vorgang #2026-0429-01 · Büro 3.14</p>
       </header>
 
       <div class="card">
-        <header>
-          <div class="card-title">Ausgeber</div>
-          <span class="badge" id="badge-1">leer</span>
-        </header>
+        <div class="card-head">
+          <div class="card-title">Unterschrift</div>
+          <span class="badge" id="badge">leer</span>
+        </div>
         <div class="pad-wrap">
-          <canvas id="pad1"></canvas>
-          <div class="pad-hint" id="hint1">Hier mit dem Finger unterschreiben</div>
+          <canvas id="pad"></canvas>
+          <div class="pad-hint" id="hint">Hier mit dem Finger unterschreiben</div>
         </div>
         <div class="row">
-          <button data-clear="1">Löschen</button>
-        </div>
-      </div>
-
-      <div class="card">
-        <header>
-          <div class="card-title">Empfänger</div>
-          <span class="badge" id="badge-2">leer</span>
-        </header>
-        <div class="pad-wrap">
-          <canvas id="pad2"></canvas>
-          <div class="pad-hint" id="hint2">Hier mit dem Finger unterschreiben</div>
-        </div>
-        <div class="row">
-          <button data-clear="2">Löschen</button>
+          <button id="clear">Löschen</button>
         </div>
       </div>
 
       <button class="primary" id="submit" disabled>Übergabe</button>
-
-      <p class="install-tip">
-        Tipp: Über das Browser-Menü „Zum Home-Bildschirm hinzufügen" als App installieren.
-      </p>
     </section>
 
     <section class="success" id="success">
@@ -228,93 +202,67 @@
 
   <script src="https://cdn.jsdelivr.net/npm/signature_pad@5.0.4/dist/signature_pad.umd.min.js"></script>
   <script>
-    const pads = {};
+    const canvas = document.getElementById('pad');
+    const hint = document.getElementById('hint');
+    const badge = document.getElementById('badge');
+    const submit = document.getElementById('submit');
 
-    function createPad(id) {
-      const canvas = document.getElementById('pad' + id);
-      const hint = document.getElementById('hint' + id);
-      const badge = document.getElementById('badge-' + id);
+    const pad = new SignaturePad(canvas, {
+      penColor: '#0f172a',
+      backgroundColor: 'rgba(0,0,0,0)',
+      minWidth: 0.6,
+      maxWidth: 2.2,
+    });
 
-      function resize() {
-        const ratio = Math.max(window.devicePixelRatio || 1, 1);
-        const rect = canvas.parentElement.getBoundingClientRect();
-        canvas.width = rect.width * ratio;
-        canvas.height = rect.height * ratio;
-        canvas.getContext('2d').scale(ratio, ratio);
-        if (pads[id]) pads[id].clear();
-        updateState();
-      }
-
-      const pad = new SignaturePad(canvas, {
-        penColor: '#0f172a',
-        backgroundColor: 'rgba(0,0,0,0)',
-        minWidth: 0.6,
-        maxWidth: 2.2,
-      });
-      pad.addEventListener('beginStroke', () => {
-        hint.classList.add('hidden');
-      });
-      pad.addEventListener('endStroke', updateState);
-
-      pads[id] = pad;
-      pad._hint = hint;
-      pad._badge = badge;
-
-      resize();
-      window.addEventListener('resize', resize);
-      window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+    function resizeCanvas() {
+      const ratio = Math.max(window.devicePixelRatio || 1, 1);
+      const data = pad.toData();
+      canvas.width = canvas.offsetWidth * ratio;
+      canvas.height = canvas.offsetHeight * ratio;
+      canvas.getContext('2d').scale(ratio, ratio);
+      pad.clear();
+      if (data && data.length) pad.fromData(data);
+      updateState();
     }
 
     function updateState() {
-      const submit = document.getElementById('submit');
-      let allSigned = true;
-      for (const id of ['1', '2']) {
-        const pad = pads[id];
-        const empty = pad.isEmpty();
-        pad._badge.textContent = empty ? 'leer' : 'unterschrieben';
-        pad._badge.classList.toggle('ok', !empty);
-        if (empty) {
-          pad._hint.classList.remove('hidden');
-          allSigned = false;
-        } else {
-          pad._hint.classList.add('hidden');
-        }
-      }
-      submit.disabled = !allSigned;
+      const empty = pad.isEmpty();
+      badge.textContent = empty ? 'leer' : 'unterschrieben';
+      badge.classList.toggle('ok', !empty);
+      hint.classList.toggle('hidden', !empty);
+      submit.disabled = empty;
     }
 
-    createPad('1');
-    createPad('2');
+    pad.addEventListener('beginStroke', () => hint.classList.add('hidden'));
+    pad.addEventListener('endStroke', updateState);
 
-    document.querySelectorAll('[data-clear]').forEach(btn => {
-      btn.addEventListener('click', () => {
-        pads[btn.dataset.clear].clear();
-        updateState();
-      });
+    document.getElementById('clear').addEventListener('click', () => {
+      pad.clear();
+      updateState();
     });
 
     document.getElementById('submit').addEventListener('click', () => {
-      // collect signatures (PNG dataURLs) — wired up so it's not just visual
-      const sig1 = pads['1'].toDataURL('image/png');
-      const sig2 = pads['2'].toDataURL('image/png');
+      const sig = pad.toDataURL('image/png');
       const ts = new Date();
-      const meta = `Vorgang #2026-0429-01 · ${ts.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})} Uhr bestätigt`;
-      console.log('Signatur Ausgeber:', sig1.length, 'bytes');
-      console.log('Signatur Empfänger:', sig2.length, 'bytes');
-      document.getElementById('success-meta').textContent = meta;
+      console.log('Signatur:', sig.length, 'bytes');
+      document.getElementById('success-meta').textContent =
+        `Vorgang #2026-0429-01 · ${ts.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})} Uhr bestätigt`;
       document.getElementById('main').classList.add('hidden');
       document.getElementById('success').classList.add('show');
       if (navigator.vibrate) navigator.vibrate(30);
     });
 
     document.getElementById('reset').addEventListener('click', () => {
-      pads['1'].clear();
-      pads['2'].clear();
+      pad.clear();
       updateState();
       document.getElementById('success').classList.remove('show');
       document.getElementById('main').classList.remove('hidden');
       window.scrollTo({top: 0, behavior: 'smooth'});
     });
+
+    resizeCanvas();
+    window.addEventListener('resize', resizeCanvas);
+    window.addEventListener('orientationchange', () => setTimeout(resizeCanvas, 200));
 
     if ('serviceWorker' in navigator) {
       window.addEventListener('load', () => {
