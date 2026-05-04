@@ -1,0 +1,326 @@
+<!doctype html>
+<html lang="de">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover, user-scalable=no" />
+  <meta name="theme-color" content="#0f172a" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
+  <meta name="apple-mobile-web-app-title" content="Schlüssel" />
+  <link rel="manifest" href="./manifest.json" />
+  <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+  <link rel="icon" type="image/png" href="./icons/icon-192.png" />
+  <title>Schlüsselübergabe</title>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --surface: #ffffff;
+      --ink: #0f172a;
+      --muted: #64748b;
+      --line: #e2e8f0;
+      --accent: #2563eb;
+      --accent-ink: #ffffff;
+      --ok: #16a34a;
+      --danger: #dc2626;
+    }
+    * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+    html, body {
+      margin: 0; padding: 0;
+      font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Inter, system-ui, sans-serif;
+      color: var(--ink);
+      background: var(--bg);
+      overscroll-behavior: none;
+    }
+    body {
+      min-height: 100dvh;
+      padding: env(safe-area-inset-top) env(safe-area-inset-right) env(safe-area-inset-bottom) env(safe-area-inset-left);
+    }
+    .app {
+      max-width: 560px;
+      margin: 0 auto;
+      padding: 16px 16px 32px;
+    }
+    header {
+      padding: 12px 4px 20px;
+    }
+    .eyebrow {
+      font-size: 12px;
+      letter-spacing: 0.08em;
+      text-transform: uppercase;
+      color: var(--muted);
+      margin: 0 0 4px;
+    }
+    h1 {
+      font-size: 22px;
+      margin: 0;
+      letter-spacing: -0.01em;
+    }
+    .meta {
+      margin-top: 6px;
+      font-size: 14px;
+      color: var(--muted);
+    }
+    .card {
+      background: var(--surface);
+      border: 1px solid var(--line);
+      border-radius: 14px;
+      padding: 14px;
+      margin-bottom: 14px;
+      box-shadow: 0 1px 2px rgba(15,23,42,0.04);
+    }
+    .card header {
+      padding: 0 0 10px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+    }
+    .card-title {
+      font-size: 15px;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .badge {
+      font-size: 11px;
+      color: var(--muted);
+      background: var(--bg);
+      padding: 3px 8px;
+      border-radius: 999px;
+      border: 1px solid var(--line);
+    }
+    .badge.ok { color: var(--ok); border-color: #bbf7d0; background: #f0fdf4; }
+    .pad-wrap {
+      position: relative;
+      background: #fafafa;
+      border: 1px dashed var(--line);
+      border-radius: 10px;
+      aspect-ratio: 16 / 9;
+      overflow: hidden;
+      touch-action: none;
+    }
+    canvas { display: block; width: 100%; height: 100%; }
+    .pad-hint {
+      position: absolute; inset: 0;
+      display: flex; align-items: center; justify-content: center;
+      color: #cbd5e1;
+      font-size: 13px;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+    .pad-hint.hidden { opacity: 0; }
+    .row {
+      display: flex; justify-content: flex-end; gap: 8px;
+      margin-top: 10px;
+    }
+    button {
+      font: inherit;
+      cursor: pointer;
+      border: 1px solid var(--line);
+      background: var(--surface);
+      color: var(--ink);
+      padding: 8px 14px;
+      border-radius: 8px;
+      font-size: 14px;
+      font-weight: 500;
+    }
+    button:active { transform: scale(0.98); }
+    button.primary {
+      background: var(--accent);
+      color: var(--accent-ink);
+      border-color: var(--accent);
+      width: 100%;
+      padding: 16px;
+      font-size: 16px;
+      font-weight: 600;
+      border-radius: 12px;
+      margin-top: 8px;
+    }
+    button.primary:disabled {
+      background: #cbd5e1;
+      border-color: #cbd5e1;
+      color: #f8fafc;
+      cursor: not-allowed;
+    }
+    /* success view */
+    .success {
+      display: none;
+      flex-direction: column;
+      align-items: center;
+      text-align: center;
+      padding: 60px 20px;
+    }
+    .success.show { display: flex; }
+    .check {
+      width: 72px; height: 72px;
+      border-radius: 50%;
+      background: #f0fdf4;
+      color: var(--ok);
+      display: flex; align-items: center; justify-content: center;
+      font-size: 40px;
+      margin-bottom: 20px;
+      border: 2px solid #bbf7d0;
+    }
+    .success h2 { margin: 0 0 6px; font-size: 20px; }
+    .success p { color: var(--muted); margin: 0 0 24px; font-size: 14px; }
+    .success button { width: 100%; max-width: 280px; }
+    .main.hidden { display: none; }
+    .install-tip {
+      margin-top: 18px;
+      font-size: 12px;
+      color: var(--muted);
+      text-align: center;
+      line-height: 1.4;
+    }
+  </style>
+</head>
+<body>
+  <div class="app">
+    <section class="main" id="main">
+      <header>
+        <p class="eyebrow">Prototyp</p>
+        <h1>Schlüsselübergabe</h1>
+        <p class="meta">Vorgang #2026-0429-01 · Büro 3.14</p>
+      </header>
+
+      <div class="card">
+        <header>
+          <div class="card-title">Ausgeber</div>
+          <span class="badge" id="badge-1">leer</span>
+        </header>
+        <div class="pad-wrap">
+          <canvas id="pad1"></canvas>
+          <div class="pad-hint" id="hint1">Hier mit dem Finger unterschreiben</div>
+        </div>
+        <div class="row">
+          <button data-clear="1">Löschen</button>
+        </div>
+      </div>
+
+      <div class="card">
+        <header>
+          <div class="card-title">Empfänger</div>
+          <span class="badge" id="badge-2">leer</span>
+        </header>
+        <div class="pad-wrap">
+          <canvas id="pad2"></canvas>
+          <div class="pad-hint" id="hint2">Hier mit dem Finger unterschreiben</div>
+        </div>
+        <div class="row">
+          <button data-clear="2">Löschen</button>
+        </div>
+      </div>
+
+      <button class="primary" id="submit" disabled>Übergabe</button>
+
+      <p class="install-tip">
+        Tipp: Über das Browser-Menü „Zum Home-Bildschirm hinzufügen" als App installieren.
+      </p>
+    </section>
+
+    <section class="success" id="success">
+      <div class="check">✓</div>
+      <h2>Übergabe abgeschlossen</h2>
+      <p id="success-meta">Vorgang #2026-0429-01</p>
+      <button class="primary" id="reset">Neuer Vorgang</button>
+    </section>
+  </div>
+
+  <script src="https://cdn.jsdelivr.net/npm/signature_pad@5.0.4/dist/signature_pad.umd.min.js"></script>
+  <script>
+    const pads = {};
+
+    function createPad(id) {
+      const canvas = document.getElementById('pad' + id);
+      const hint = document.getElementById('hint' + id);
+      const badge = document.getElementById('badge-' + id);
+
+      function resize() {
+        const ratio = Math.max(window.devicePixelRatio || 1, 1);
+        const rect = canvas.parentElement.getBoundingClientRect();
+        canvas.width = rect.width * ratio;
+        canvas.height = rect.height * ratio;
+        canvas.getContext('2d').scale(ratio, ratio);
+        if (pads[id]) pads[id].clear();
+        updateState();
+      }
+
+      const pad = new SignaturePad(canvas, {
+        penColor: '#0f172a',
+        backgroundColor: 'rgba(0,0,0,0)',
+        minWidth: 0.6,
+        maxWidth: 2.2,
+      });
+      pad.addEventListener('beginStroke', () => {
+        hint.classList.add('hidden');
+      });
+      pad.addEventListener('endStroke', updateState);
+
+      pads[id] = pad;
+      pad._hint = hint;
+      pad._badge = badge;
+
+      resize();
+      window.addEventListener('resize', resize);
+      window.addEventListener('orientationchange', () => setTimeout(resize, 200));
+    }
+
+    function updateState() {
+      const submit = document.getElementById('submit');
+      let allSigned = true;
+      for (const id of ['1', '2']) {
+        const pad = pads[id];
+        const empty = pad.isEmpty();
+        pad._badge.textContent = empty ? 'leer' : 'unterschrieben';
+        pad._badge.classList.toggle('ok', !empty);
+        if (empty) {
+          pad._hint.classList.remove('hidden');
+          allSigned = false;
+        } else {
+          pad._hint.classList.add('hidden');
+        }
+      }
+      submit.disabled = !allSigned;
+    }
+
+    createPad('1');
+    createPad('2');
+
+    document.querySelectorAll('[data-clear]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        pads[btn.dataset.clear].clear();
+        updateState();
+      });
+    });
+
+    document.getElementById('submit').addEventListener('click', () => {
+      // collect signatures (PNG dataURLs) — wired up so it's not just visual
+      const sig1 = pads['1'].toDataURL('image/png');
+      const sig2 = pads['2'].toDataURL('image/png');
+      const ts = new Date();
+      const meta = `Vorgang #2026-0429-01 · ${ts.toLocaleTimeString('de-DE', {hour:'2-digit', minute:'2-digit'})} Uhr bestätigt`;
+      console.log('Signatur Ausgeber:', sig1.length, 'bytes');
+      console.log('Signatur Empfänger:', sig2.length, 'bytes');
+      document.getElementById('success-meta').textContent = meta;
+      document.getElementById('main').classList.add('hidden');
+      document.getElementById('success').classList.add('show');
+      if (navigator.vibrate) navigator.vibrate(30);
+    });
+
+    document.getElementById('reset').addEventListener('click', () => {
+      pads['1'].clear();
+      pads['2'].clear();
+      updateState();
+      document.getElementById('success').classList.remove('show');
+      document.getElementById('main').classList.remove('hidden');
+      window.scrollTo({top: 0, behavior: 'smooth'});
+    });
+
+    if ('serviceWorker' in navigator) {
+      window.addEventListener('load', () => {
+        navigator.serviceWorker.register('./sw.js').catch(() => {});
+      });
+    }
+  </script>
+</body>
+</html>
