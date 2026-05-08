@@ -369,7 +369,11 @@
       list.replaceChildren();
 
       if (offen.length === 0) {
-        list.appendChild(makeEl('p', 'empty', 'Alle Vorgänge sind abgeschlossen.'));
+        const p = makeEl('p', 'empty');
+        p.append('Alle Vorgänge sind abgeschlossen.');
+        p.append(document.createElement('br'));
+        p.append('Seite neu laden für eine frische Demo-Liste.');
+        list.appendChild(p);
         return;
       }
 
@@ -452,13 +456,24 @@
 
     function complete() {
       const v = state.current;
-      state.vorgaenge = state.vorgaenge.filter((x) => x.id !== v.id);
       const ts = new Date();
       const time = ts.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
-      $('success-headline').textContent = v.typ + ' bestätigt';
+
+      if (v.typ === 'Ausgabe') {
+        // Schlüssel ist draußen — Vorgang wandert in den Rücknahme-Bucket
+        const idx = state.vorgaenge.findIndex((x) => x.id === v.id);
+        if (idx >= 0) state.vorgaenge[idx] = { ...v, typ: 'Rücknahme', zeit: time };
+      } else {
+        // Rücknahme abgeschlossen — Vorgang fertig
+        state.vorgaenge = state.vorgaenge.filter((x) => x.id !== v.id);
+      }
+
+      const heading = v.typ === 'Ausgabe' ? 'Schlüssel ausgegeben' : 'Schlüssel zurückgegeben';
+      const tail    = v.typ === 'Ausgabe' ? 'Rücknahme steht aus' : 'Vorgang abgeschlossen';
+      $('success-headline').textContent = heading;
       $('success-line1').textContent = v.name + ' · ' + v.schluessel;
-      $('success-line2').textContent = v.raum + ' · ' + time + ' Uhr';
-      console.log('Abgeschlossen:', v.id, {
+      $('success-line2').textContent = v.raum + ' · ' + time + ' Uhr · ' + tail;
+      console.log('Abgeschlossen:', v.id, v.typ, {
         ausgeber:   state.signatures[1] ? state.signatures[1].length + ' strokes' : null,
         empfaenger: state.signatures[2] ? state.signatures[2].length + ' strokes' : null,
       });
