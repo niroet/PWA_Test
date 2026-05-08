@@ -1,4 +1,4 @@
-const CACHE = 'keyhandout-v5';
+const CACHE = 'keyhandout-v6';
 const ASSETS = [
   './',
   './index.html',

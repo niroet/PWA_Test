@@ -93,11 +93,22 @@
     .item-arrow { color: var(--ink-3); font-size: 20px; line-height: 1; }
 
     .empty {
-      padding: 64px 20px;
+      padding: 64px 20px 24px;
       text-align: center;
       color: var(--ink-2);
       font-size: 14px;
     }
+    .refresh-row {
+      margin-top: 32px;
+      display: flex;
+      justify-content: center;
+    }
+    .refresh-row .text-btn { padding: 12px 16px; }
+    .refresh-row.empty-state {
+      margin-top: 0;
+      padding: 0 20px 40px;
+    }
+    .refresh-row.empty-state .primary { max-width: 320px; }
 
     .flow-head {
       display: flex;
@@ -295,7 +306,19 @@
       current: null,
       step: 1,
       signatures: { 1: null, 2: null },
+      refreshing: false,
+      nextId: 100,
     };
+
+    // Pool of fake Vorgänge — in production these come from the MS Exchange mailbox.
+    const POOL = [
+      { name: 'Sabrina Hofer',  schluessel: 'SCHL-115', raum: 'Werkstatt A' },
+      { name: 'Markus Eder',    schluessel: 'SCHL-220', raum: 'Lager 3' },
+      { name: 'Julia Mayer',    schluessel: 'SCHL-410', raum: 'Konferenz Süd' },
+      { name: 'David Lenz',     schluessel: 'SCHL-118', raum: 'Büro 2.07' },
+      { name: 'Karin Aigner',   schluessel: 'SCHL-501', raum: 'Server-Raum' },
+      { name: 'Florian Berger', schluessel: 'SCHL-088', raum: 'Atelier' },
+    ];
 
     const labels = {
       'Ausgabe':   { 1: 'Ausgeber',  2: 'Empfänger' },
@@ -369,11 +392,10 @@
       list.replaceChildren();
 
       if (offen.length === 0) {
-        const p = makeEl('p', 'empty');
-        p.append('Alle Vorgänge sind abgeschlossen.');
-        p.append(document.createElement('br'));
-        p.append('Seite neu laden für eine frische Demo-Liste.');
-        list.appendChild(p);
+        list.appendChild(makeEl('p', 'empty', 'Keine offenen Vorgänge.'));
+        const row = makeEl('div', 'refresh-row empty-state');
+        row.appendChild(makeRefreshButton({ primary: true }));
+        list.appendChild(row);
         return;
       }
 
@@ -397,6 +419,37 @@
           list.appendChild(btn);
         }
       }
+
+      const row = makeEl('div', 'refresh-row');
+      row.appendChild(makeRefreshButton({ primary: false }));
+      list.appendChild(row);
+    }
+
+    function makeRefreshButton({ primary }) {
+      const btn = makeEl('button', primary ? 'primary' : 'text-btn');
+      btn.id = 'refresh';
+      btn.type = 'button';
+      btn.textContent = state.refreshing ? 'Wird abgerufen…' : 'Postfach abrufen';
+      btn.disabled = state.refreshing;
+      btn.addEventListener('click', refreshMailbox);
+      return btn;
+    }
+
+    async function refreshMailbox() {
+      if (state.refreshing) return;
+      state.refreshing = true;
+      renderList();
+      // Simulates the backend pulling new Übergabeprotokoll-PDFs from MS Exchange.
+      await new Promise((r) => setTimeout(r, 320));
+      const ts = new Date();
+      const time = ts.toLocaleTimeString('de-DE', { hour: '2-digit', minute: '2-digit' });
+      const count = 1 + Math.floor(Math.random() * 2);
+      const picks = POOL.slice().sort(() => Math.random() - 0.5).slice(0, count);
+      for (const p of picks) {
+        state.vorgaenge.push({ id: 'V' + state.nextId++, typ: 'Ausgabe', ...p, zeit: time });
+      }
+      state.refreshing = false;
+      renderList();
     }
 
     function startVorgang(id) {
